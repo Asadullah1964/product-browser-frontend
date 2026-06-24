@@ -8,20 +8,29 @@ export default function Products() {
     const [products, setProducts] = useState([]);
     const [cursor, setCursor] = useState(null);
     const [category, setCategory] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [initialLoading, setInitialLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    const loadProducts = async (reset = false, selectedCategory = category) => {
+    const [form, setForm] = useState({
+        name: "",
+        category: "",
+        price: "",
+        image: "",
+    });
+
+    const [editId, setEditId] = useState(null);
+
+    const loadProducts = async (reset = false) => {
         try {
-            setLoading(true);
+            setLoadingMore(true);
 
             let url = API + "?limit=20";
 
-            if (selectedCategory) {
-                url += `&category=${selectedCategory}`;
+            if (category) {
+                url += `&category=${category}`;
             }
 
-            if (!reset && cursor) {
+            if (cursor && !reset) {
                 url += `&cursorCreatedAt=${cursor.createdAt}&cursorId=${cursor.id}`;
             }
 
@@ -35,142 +44,338 @@ export default function Products() {
 
             setCursor(res.data.nextCursor);
         } catch (error) {
-            console.error("Failed to load products:", error);
+            console.error("Error loading products:", error);
         } finally {
-            setLoading(false);
-            setInitialLoading(false);
+            setLoadingMore(false);
         }
     };
 
     useEffect(() => {
         setProducts([]);
         setCursor(null);
-        setInitialLoading(true);
-        loadProducts(true, category);
+        loadProducts(true);
     }, [category]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        try {
+            setSubmitting(true);
+
+            if (editId) {
+                await axios.put(`${API}/${editId}`, form);
+            } else {
+                await axios.post(API, form);
+            }
+
+            setForm({
+                name: "",
+                category: "",
+                price: "",
+                image: "",
+            });
+
+            setEditId(null);
+            setProducts([]);
+            setCursor(null);
+            loadProducts(true);
+        } catch (error) {
+            console.error("Error saving product:", error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const deleteProduct = async (id) => {
+        try {
+            console.log("Deleting ID:", id);
+            console.log("Delete URL:", `${API}/${id}`);
+
+            await axios.delete(`${API}/${id}`);
+
+            setProducts((prev) => prev.filter((p) => p._id !== id));
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            console.error("Response data:", error.response?.data);
+            console.error("Status:", error.response?.status);
+        }
+    };
+
+    const editProduct = (product) => {
+        setEditId(product._id);
+        setForm({
+            name: product.name,
+            category: product.category,
+            price: product.price,
+            image: product.image,
+        });
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const resetForm = () => {
+        setEditId(null);
+        setForm({
+            name: "",
+            category: "",
+            price: "",
+            image: "",
+        });
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-                <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
-                            Browse collection
+                            Admin panel
                         </p>
                         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                            Product Browser
+                            Product Manager
                         </h1>
                         <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
-                            Explore products by category with smooth pagination and a cleaner shopping-style interface.
+                            Create, update, filter, and manage your catalog from one clean dashboard.
                         </p>
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <select
-                            className="
-                rounded-xl border border-gray-300 bg-white px-4 py-3
-                text-sm font-medium text-gray-700 shadow-sm outline-none
-                transition focus:border-black focus:ring-2 focus:ring-black/10
-                dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200
-                dark:focus:border-white dark:focus:ring-white/10
-              "
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                        >
-                            <option value="">All Categories</option>
-                            <option value="electronics">Electronics</option>
-                            <option value="fashion">Fashion</option>
-                            <option value="gaming">Gaming</option>
-                            <option value="books">Books</option>
-                        </select>
-                    </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                Total loaded
+                            </p>
+                            <p className="mt-2 text-2xl font-bold">{products.length}</p>
+                        </div>
 
-                <div
-                    className="
-            mb-6 rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm
-            backdrop-blur dark:border-gray-800 dark:bg-gray-900/80
-          "
-                >
-                    <div className="flex flex-wrap items-center gap-3">
-                        {["", "electronics", "fashion", "gaming", "books"].map((item) => (
-                            <button
-                                key={item || "all"}
-                                onClick={() => setCategory(item)}
-                                className={`rounded-full px-4 py-2 text-sm font-medium transition ${category === item
-                                        ? "bg-black text-white dark:bg-white dark:text-black"
-                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                    }`}
-                            >
-                                {item === "" ? "All" : item.charAt(0).toUpperCase() + item.slice(1)}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {initialLoading ? (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                        {Array.from({ length: 8 }).map((_, index) => (
-                            <div
-                                key={index}
-                                className="
-                  animate-pulse overflow-hidden rounded-2xl
-                  border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900
-                "
-                            >
-                                <div className="h-44 bg-gray-200 dark:bg-gray-800" />
-                                <div className="space-y-3 p-5">
-                                    <div className="h-5 w-3/4 rounded bg-gray-200 dark:bg-gray-800" />
-                                    <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-800" />
-                                    <div className="h-6 w-1/3 rounded bg-gray-200 dark:bg-gray-800" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : products.length === 0 ? (
-                    <div
-                        className="
-              rounded-2xl border border-dashed border-gray-300
-              bg-white p-12 text-center shadow-sm
-              dark:border-gray-700 dark:bg-gray-900
-            "
-                    >
-                        <h2 className="text-xl font-semibold">No products found</h2>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            Try switching the category filter to view more products.
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        <div className="mb-6 flex items-center justify-between">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Showing <span className="font-semibold text-gray-900 dark:text-white">{products.length}</span> products
+                        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                Mode
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                {editId ? "Editing" : "Creating"}
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                            {products.map((product) => (
-                                <ProductCard key={product._id} product={product} />
-                            ))}
+                        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                Filter
+                            </p>
+                            <p className="mt-2 text-sm font-semibold capitalize text-gray-900 dark:text-white">
+                                {category || "All categories"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mb-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+                    <form
+                        onSubmit={handleSubmit}
+                        className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                    >
+                        <div className="mb-6 flex items-start justify-between gap-4">
+                            <div>
+                                <h2 className="text-xl font-semibold">
+                                    {editId ? "Edit product" : "Add new product"}
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Fill in product details and keep your catalog updated.
+                                </p>
+                            </div>
+
+                            {editId && (
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                >
+                                    Cancel edit
+                                </button>
+                            )}
                         </div>
 
-                        <div className="mt-10 flex justify-center">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="md:col-span-2">
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Product name
+                                </label>
+                                <input
+                                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black focus:ring-4 focus:ring-black/5 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+                                    placeholder="Enter product name"
+                                    value={form.name}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            name: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Category
+                                </label>
+                                <input
+                                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black focus:ring-4 focus:ring-black/5 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+                                    placeholder="electronics / fashion / gaming"
+                                    value={form.category}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            category: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Price
+                                </label>
+                                <input
+                                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black focus:ring-4 focus:ring-black/5 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+                                    placeholder="Enter price"
+                                    type="number"
+                                    value={form.price}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            price: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Image URL
+                                </label>
+                                <input
+                                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black focus:ring-4 focus:ring-black/5 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+                                    placeholder="Paste product image URL"
+                                    value={form.image}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            image: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                             <button
-                                className="
-                  rounded-2xl bg-black px-6 py-3
-                  text-sm font-semibold text-white
-                  transition hover:bg-gray-800
-                  disabled:cursor-not-allowed disabled:opacity-50
-                  dark:bg-white dark:text-black dark:hover:bg-gray-200
-                "
-                                onClick={() => loadProducts(false)}
-                                disabled={loading || !cursor}
+                                type="submit"
+                                disabled={submitting}
+                                className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-gray-200"
                             >
-                                {loading ? "Loading..." : cursor ? "Load More" : "No More Products"}
+                                {submitting
+                                    ? editId
+                                        ? "Updating..."
+                                        : "Adding..."
+                                    : editId
+                                        ? "Update Product"
+                                        : "Add Product"}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={resetForm}
+                                className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            >
+                                Reset
                             </button>
                         </div>
-                    </>
+                    </form>
+
+                    <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h2 className="text-xl font-semibold">Filter products</h2>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Narrow your product grid by category.
+                        </p>
+
+                        <div className="mt-5 space-y-3">
+                            <select
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5 dark:border-gray-700 dark:bg-gray-950 dark:text-white dark:focus:border-white dark:focus:ring-white/10"
+                            >
+                                <option value="">All categories</option>
+                                <option value="electronics">electronics</option>
+                                <option value="fashion">fashion</option>
+                                <option value="gaming">gaming</option>
+                                <option value="books">books</option>
+                            </select>
+
+                            <div className="flex flex-wrap gap-2">
+                                {["", "electronics", "fashion", "gaming", "books"].map((item) => (
+                                    <button
+                                        key={item || "all"}
+                                        type="button"
+                                        onClick={() => setCategory(item)}
+                                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${category === item
+                                            ? "bg-black text-white dark:bg-white dark:text-black"
+                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                            }`}
+                                    >
+                                        {item || "All"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Current action
+                            </p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {editId
+                                    ? "You are editing an existing product. Save changes when done."
+                                    : "You are in create mode. Add a new product using the form."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mb-5 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-semibold">Product list</h2>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Manage catalog items with edit and delete actions.
+                        </p>
+                    </div>
+                </div>
+
+                {products.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                        <h3 className="text-lg font-semibold">No products found</h3>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            Try another category or add a new product.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                        {products.map((product) => (
+                            <ProductCard
+                                key={product._id}
+                                product={product}
+                                editProduct={editProduct}
+                                deleteProduct={deleteProduct}
+                            />
+                        ))}
+                    </div>
                 )}
+
+                <div className="mt-10 flex justify-center">
+                    <button
+                        onClick={() => loadProducts(false)}
+                        disabled={!cursor || loadingMore}
+                        className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {loadingMore ? "Loading..." : cursor ? "Load More" : "No More Products"}
+                    </button>
+                </div>
             </div>
         </div>
     );
