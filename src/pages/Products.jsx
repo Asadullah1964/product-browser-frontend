@@ -16,6 +16,7 @@ export default function Products() {
 
     const [bulkGenerating, setBulkGenerating] = useState(false);
     const [bulkProgress, setBulkProgress] = useState(0);
+    const [bulkStatus, setBulkStatus] = useState("");
     const [statusMessage, setStatusMessage] = useState("");
 
     const [form, setForm] = useState({
@@ -150,23 +151,27 @@ export default function Products() {
             setBulkGenerating(true);
             setBulkProgress(0);
             setBulkStatus("Starting bulk generation...");
+            setStatusMessage("");
 
-            const categories = ["electronics", "fashion", "gaming", "books"];
             const totalProducts = 200000;
             const chunkSize = 5000;
             const totalChunks = Math.ceil(totalProducts / chunkSize);
 
             for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                const products = [];
+                const batch = [];
                 const start = chunkIndex * chunkSize;
                 const end = Math.min(start + chunkSize, totalProducts);
 
                 for (let i = start; i < end; i++) {
-                    products.push({
+                    batch.push({
                         name: `Product ${i + 1}`,
-                        category: categories[Math.floor(Math.random() * categories.length)],
+                        category:
+                            CATEGORY_OPTIONS[
+                            Math.floor(Math.random() * CATEGORY_OPTIONS.length)
+                            ],
                         price: Math.floor(Math.random() * 100000),
-                        image: "https://images.unsplash.com/photo-1498049794561-7780e7231661",
+                        image:
+                            "https://images.unsplash.com/photo-1498049794561-7780e7231661",
                         created_at: new Date(),
                         updated_at: new Date(),
                     });
@@ -174,15 +179,18 @@ export default function Products() {
 
                 setBulkStatus(`Uploading batch ${chunkIndex + 1} of ${totalChunks}...`);
 
-                await axios.post(API + "/bulk", { products });
+                await axios.post(`${API}/bulk`, { products: batch });
 
-                setBulkProgress(Math.round(((chunkIndex + 1) / totalChunks) * 100));
+                setBulkProgress(
+                    Math.round(((chunkIndex + 1) / totalChunks) * 100)
+                );
             }
 
             setBulkStatus("Inserted 200,000 products successfully.");
+            setStatusMessage("Bulk seed completed.");
             setProducts([]);
             setCursor(null);
-            loadProducts(true);
+            await loadProducts(true, category);
         } catch (error) {
             console.error("Error generating bulk products:", error);
             setBulkStatus("Bulk insert failed.");
@@ -424,8 +432,7 @@ export default function Products() {
                                         Bulk tools
                                     </h2>
                                     <p className="mt-1 text-sm text-amber-800/80 dark:text-amber-300/80">
-                                        Insert 200,000 demo records in batches for testing large
-                                        catalog performance.
+                                        Insert 200,000 demo records in batches for testing large catalog performance.
                                     </p>
                                 </div>
 
@@ -436,8 +443,7 @@ export default function Products() {
 
                             <div className="mt-4 rounded-2xl border border-amber-200/70 bg-white/70 p-4 dark:border-amber-900/40 dark:bg-black/20">
                                 <p className="text-sm text-amber-900 dark:text-amber-100">
-                                    Recommended only for seed or stress-test environments. This
-                                    action may take time depending on backend speed.
+                                    Recommended only for seed or stress-test environments. This action may take time depending on backend speed.
                                 </p>
                             </div>
 
@@ -445,18 +451,16 @@ export default function Products() {
                                 type="button"
                                 onClick={generateProducts}
                                 disabled={bulkGenerating || submitting}
-                                className="rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="mt-5 w-full rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {bulkGenerating ? "Generating 200k..." : "Generate 200k Products"}
                             </button>
 
-                            {(bulkGenerating || bulkProgress > 0) && (
+                            {(bulkGenerating || bulkProgress > 0 || bulkStatus) && (
                                 <div className="mt-4 rounded-2xl border border-amber-200/80 bg-white/80 p-4 dark:border-amber-900/40 dark:bg-black/20">
                                     <div className="mb-2 flex items-center justify-between gap-3">
                                         <p className="text-sm text-amber-900 dark:text-amber-100">
-                                            {bulkGenerating
-                                                ? statusMessage || "Bulk generation in progress..."
-                                                : "Bulk action completed."}
+                                            {bulkStatus || "Bulk generation in progress..."}
                                         </p>
                                         <span className="text-sm font-semibold text-amber-900 dark:text-amber-100">
                                             {bulkProgress}%
