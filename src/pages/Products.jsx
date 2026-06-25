@@ -145,10 +145,6 @@ export default function Products() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const [bulkGenerating, setBulkGenerating] = useState(false);
-    const [bulkProgress, setBulkProgress] = useState(0);
-    const [bulkStatus, setBulkStatus] = useState("");
-
     const generateProducts = async () => {
         try {
             setBulkGenerating(true);
