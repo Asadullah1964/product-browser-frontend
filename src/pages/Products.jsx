@@ -154,7 +154,7 @@ export default function Products() {
             setStatusMessage("");
 
             const totalProducts = 200000;
-            const chunkSize = 500;
+            const chunkSize = 100;
             const totalChunks = Math.ceil(totalProducts / chunkSize);
 
             for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
