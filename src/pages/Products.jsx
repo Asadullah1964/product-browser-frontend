@@ -145,51 +145,51 @@ export default function Products() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
+    const [bulkGenerating, setBulkGenerating] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState(0);
+    const [bulkStatus, setBulkStatus] = useState("");
+
     const generateProducts = async () => {
         try {
             setBulkGenerating(true);
             setBulkProgress(0);
-            setStatusMessage("Preparing 200,000 products...");
+            setBulkStatus("Starting bulk generation...");
 
-            const data = [];
-
-            for (let i = 0; i < 200000; i++) {
-                data.push({
-                    name: `Product ${i + 1}`,
-                    category:
-                        CATEGORY_OPTIONS[
-                        Math.floor(Math.random() * CATEGORY_OPTIONS.length)
-                        ],
-                    price: Math.floor(Math.random() * 100000),
-                    image:
-                        "https://images.unsplash.com/photo-1498049794561-7780e7231661",
-                    created_at: new Date(),
-                    updated_at: new Date(),
-                });
-            }
-
+            const categories = ["electronics", "fashion", "gaming", "books"];
+            const totalProducts = 200000;
             const chunkSize = 5000;
-            const totalChunks = Math.ceil(data.length / chunkSize);
+            const totalChunks = Math.ceil(totalProducts / chunkSize);
 
-            for (let i = 0; i < data.length; i += chunkSize) {
-                const currentChunk = i / chunkSize + 1;
+            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                const products = [];
+                const start = chunkIndex * chunkSize;
+                const end = Math.min(start + chunkSize, totalProducts);
 
-                setStatusMessage(`Uploading batch ${currentChunk} of ${totalChunks}...`);
+                for (let i = start; i < end; i++) {
+                    products.push({
+                        name: `Product ${i + 1}`,
+                        category: categories[Math.floor(Math.random() * categories.length)],
+                        price: Math.floor(Math.random() * 100000),
+                        image: "https://images.unsplash.com/photo-1498049794561-7780e7231661",
+                        created_at: new Date(),
+                        updated_at: new Date(),
+                    });
+                }
 
-                await axios.post(API + "/bulk", {
-                    products: data.slice(i, i + chunkSize),
-                });
+                setBulkStatus(`Uploading batch ${chunkIndex + 1} of ${totalChunks}...`);
 
-                setBulkProgress(Math.round((currentChunk / totalChunks) * 100));
+                await axios.post(API + "/bulk", { products });
+
+                setBulkProgress(Math.round(((chunkIndex + 1) / totalChunks) * 100));
             }
 
-            setStatusMessage("Inserted 200,000 products successfully.");
+            setBulkStatus("Inserted 200,000 products successfully.");
             setProducts([]);
             setCursor(null);
-            await loadProducts(true, category);
+            loadProducts(true);
         } catch (error) {
-            console.error("Error generating products:", error);
-            setStatusMessage("Bulk generation failed.");
+            console.error("Error generating bulk products:", error);
+            setBulkStatus("Bulk insert failed.");
         } finally {
             setBulkGenerating(false);
         }
@@ -399,8 +399,8 @@ export default function Products() {
                                             type="button"
                                             onClick={() => setCategory(item)}
                                             className={`rounded-full px-4 py-2 text-sm font-medium transition ${category === item
-                                                    ? "bg-black text-white dark:bg-white dark:text-black"
-                                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                                ? "bg-black text-white dark:bg-white dark:text-black"
+                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                                                 }`}
                                         >
                                             {item || "All"}
@@ -448,12 +448,10 @@ export default function Products() {
                             <button
                                 type="button"
                                 onClick={generateProducts}
-                                disabled={bulkGenerating || submitting || loadingMore}
-                                className="mt-5 w-full rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={bulkGenerating || submitting}
+                                className="rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {bulkGenerating
-                                    ? "Generating products..."
-                                    : "Generate 200k Products"}
+                                {bulkGenerating ? "Generating 200k..." : "Generate 200k Products"}
                             </button>
 
                             {(bulkGenerating || bulkProgress > 0) && (
